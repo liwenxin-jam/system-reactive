@@ -1,24 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-   
   <head>
-       
     <meta charset="UTF-8" />
-       
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-       
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-       
     <title>Document</title>
-     
   </head>
-   
   <body>
-       
     <div id="container"></div>
-     
   </body>
-   
   <script>
     const bucket = new WeakMap();
     const effectStack = [];
@@ -60,19 +50,20 @@
     });
 
     const setDivInnerHtml = () => {
-      console.log("触发了内部副作用函数");
-      document.getElementById("container").innerText = proxyData.text;
+      console.log("触发了副作用函数");
+      const text = proxyData.ok ? proxyData.text : "not";
+      document.getElementById("container").innerText = text;
     };
 
-    registerEffectFn(() => {
-      console.log("外部副作用");
-      registerEffectFn(setDivInnerHtml); // 关键：访问一下 get，收集依赖，不然 setTimeout 赋值 outerText 无法响应
-      proxyData.outerText;
-    });
+    registerEffectFn(setDivInnerHtml);
 
     setTimeout(() => {
-      console.log("应该触发外部副作用");
-      proxyData.outerText = "您好，世界！";
-    }, 1000);
+      proxyData.ok = false;
+    }, 1500);
+
+    setTimeout(() => {
+      console.log("这里不需要触发副作用函数");
+      proxyData.text = "您好，世界！";
+    }, 3000);
   </script>
 </html>
