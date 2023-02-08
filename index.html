@@ -10,25 +10,46 @@
     <div id="container"></div>
   </body>
   <script>
-    let data = { text: "Hello World！", outerText: "初始值", ok: true };
+    const bucket = new WeakMap();
+    const data = { text: "Hello World！", outerText: "初始值", ok: true };
 
     const proxyData = new Proxy(data, {
       get(target, key) {
+        let targetEffectList = bucket.get(target);
+        if (!targetEffectList) {
+          bucket.set(target, (targetEffectList = new Map()));
+        }
+        let keyEffectList = targetEffectList.get(key);
+        if (!keyEffectList) {
+          targetEffectList.set(key, (keyEffectList = new Set()));
+        }
+        // 收集（订阅）依赖
+        keyEffectList.add(setDivInnerHtml);
         return target[key];
       },
       set(target, key, newVal) {
         target[key] = newVal;
+        let targetEffectList = bucket.get(target);
+        if (!targetEffectList) {
+          return;
+        }
+        const keyEffectList = targetEffectList.get(key) || new Set();
+        // 更新（发布）依赖
+        for (const effect of [...keyEffectList]) {
+          effect();
+        }
       },
     });
 
-    let setDivInnerHtml = () => {
-      let text = proxyData.text;
-      document.getElementById('container').innerText = text;
-      console.log('触发了副作用函数');
-    }
+    const setDivInnerHtml = () => {
+      const text = proxyData.text;
+      document.getElementById("container").innerText = text;
+      console.log("触发了副作用函数");
+    };
+    setDivInnerHtml();
 
     setTimeout(() => {
-      proxyData.text = '您好，世界！'
+      proxyData.text = "您好，世界！";
     }, 1000);
   </script>
 </html>
