@@ -11,6 +11,11 @@
   </body>
   <script>
     const bucket = new WeakMap();
+    let activeFn;
+    const registerEffectFn = (fn) => {
+      activeFn = fn;
+      fn();
+    };
     const data = { text: "Hello World！", outerText: "初始值", ok: true };
 
     const proxyData = new Proxy(data, {
@@ -24,7 +29,7 @@
           targetEffectList.set(key, (keyEffectList = new Set()));
         }
         // 收集（订阅）依赖
-        keyEffectList.add(setDivInnerHtml);
+        keyEffectList.add(activeFn);
         return target[key];
       },
       set(target, key, newVal) {
@@ -46,7 +51,7 @@
       document.getElementById("container").innerText = text;
       console.log("触发了副作用函数");
     };
-    setDivInnerHtml();
+    registerEffectFn(setDivInnerHtml);
 
     setTimeout(() => {
       proxyData.text = "您好，世界！";
