@@ -1,20 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+   
   <head>
+       
     <meta charset="UTF-8" />
+       
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+       
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       
     <title>Document</title>
+     
   </head>
+   
   <body>
+       
     <div id="container"></div>
+     
   </body>
+   
   <script>
     const bucket = new WeakMap();
-    let activeFn;
+    const effectStack = [];
     const registerEffectFn = (fn) => {
-      activeFn = fn;
+      effectStack.push(fn);
       fn();
+      effectStack.pop();
     };
     const data = { text: "Hello World！", outerText: "初始值", ok: true };
 
@@ -28,8 +39,11 @@
         if (!keyEffectList) {
           targetEffectList.set(key, (keyEffectList = new Set()));
         }
-        // 收集（订阅）依赖
-        keyEffectList.add(activeFn);
+        const currentEffect = effectStack[effectStack.length - 1];
+        if (currentEffect) {
+          // 收集（订阅）依赖
+          keyEffectList.add(currentEffect);
+        }
         return target[key];
       },
       set(target, key, newVal) {
@@ -38,8 +52,7 @@
         if (!targetEffectList) {
           return;
         }
-        const keyEffectList = targetEffectList.get(key) || new Set();
-        // 更新（发布）依赖
+        const keyEffectList = targetEffectList.get(key) || new Set(); // 更新（发布）依赖
         for (const effect of [...keyEffectList]) {
           effect();
         }
@@ -47,18 +60,19 @@
     });
 
     const setDivInnerHtml = () => {
-      const text = proxyData.text;
-      document.getElementById("container").innerText = text;
       console.log("触发了内部副作用函数");
+      document.getElementById("container").innerText = proxyData.text;
     };
+
     registerEffectFn(() => {
       console.log("外部副作用");
-      registerEffectFn(setDivInnerHtml);
+      registerEffectFn(setDivInnerHtml); // 关键：访问一下 get，收集依赖，不然 setTimeout 赋值 outerText 无法响应
+      proxyData.outerText;
     });
 
     setTimeout(() => {
       console.log("应该触发外部副作用");
-      proxyData.text = "您好，世界！";
+      proxyData.outerText = "您好，世界！";
     }, 1000);
   </script>
 </html>
