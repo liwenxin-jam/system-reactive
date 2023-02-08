@@ -49,11 +49,15 @@
     const setDivInnerHtml = () => {
       const text = proxyData.text;
       document.getElementById("container").innerText = text;
-      console.log("触发了副作用函数");
+      console.log("触发了内部副作用函数");
     };
-    registerEffectFn(setDivInnerHtml);
+    registerEffectFn(() => {
+      console.log("外部副作用");
+      registerEffectFn(setDivInnerHtml);
+    });
 
     setTimeout(() => {
+      console.log("应该触发外部副作用");
       proxyData.text = "您好，世界！";
     }, 1000);
   </script>
