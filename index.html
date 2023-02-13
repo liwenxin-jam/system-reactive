@@ -12,7 +12,7 @@
   <script>
     const bucket = new WeakMap();
     const effectStack = [];
-    const registerEffectFn = (fn) => {
+    const registerEffectFn = (fn, options = {}) => {
       // 方式一，直接前置fn.deps
       // effectStack.push(fn);
       // fn.deps = new Set();
@@ -26,6 +26,7 @@
         effectStack.pop();
       };
       executor.deps = new Set();
+      executor.options = options;
       executor();
     };
     const data = { text: "Hello World！", outerText: "初始值", ok: true };
@@ -63,8 +64,14 @@
           }
           // 不清空会数据冗余
           effect.deps.clear();
+          // 因为我们需要数据更改的时候，来触发调度的执行
+          const scheduler = effect.options.scheduler;
           // 重新建立对应的绑定的关系
-          effect();
+          if (scheduler && typeof scheduler === "function") {
+            scheduler(effect);
+          } else {
+            effect();
+          }
         }
       },
     });
@@ -75,15 +82,16 @@
       document.getElementById("container").innerText = text;
     };
 
-    registerEffectFn(setDivInnerHtml);
+    registerEffectFn(setDivInnerHtml, {
+      scheduler: (effect) => {
+        console.log("执行副作用前");
+        effect();
+        console.log("执行副作用后");
+      },
+    });
 
     setTimeout(() => {
       proxyData.ok = false;
     }, 1500);
-
-    setTimeout(() => {
-      console.log("这里不需要触发副作用函数");
-      proxyData.text = "您好，世界！";
-    }, 3000);
   </script>
 </html>
