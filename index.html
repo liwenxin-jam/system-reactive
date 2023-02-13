@@ -13,9 +13,20 @@
     const bucket = new WeakMap();
     const effectStack = [];
     const registerEffectFn = (fn) => {
-      effectStack.push(fn);
-      fn();
-      effectStack.pop();
+      // 方式一，直接前置fn.deps
+      // effectStack.push(fn);
+      // fn.deps = new Set();
+      // fn();
+      // effectStack.pop();
+
+      // 方式二，借助函数闭包赋值deps
+      const executor = () => {
+        effectStack.push(executor);
+        fn();
+        effectStack.pop();
+      };
+      executor.deps = new Set();
+      executor();
     };
     const data = { text: "Hello World！", outerText: "初始值", ok: true };
 
@@ -33,6 +44,8 @@
         if (currentEffect) {
           // 收集（订阅）依赖
           keyEffectList.add(currentEffect);
+          // 副作用列表关联状态
+          currentEffect.deps.add(keyEffectList);
         }
         return target[key];
       },
@@ -44,6 +57,13 @@
         }
         const keyEffectList = targetEffectList.get(key) || new Set(); // 更新（发布）依赖
         for (const effect of [...keyEffectList]) {
+          // 销毁/解绑对应旧的副作用列表
+          for (const depSetList of effect.deps) {
+            depSetList.delete(effect);
+          }
+          // 不清空会数据冗余
+          effect.deps.clear();
+          // 重新建立对应的绑定的关系
           effect();
         }
       },
