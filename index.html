@@ -34,18 +34,24 @@
     const registerEffectFn = (fn, options = {}) => {
       const executor = () => {
         effectStack.push(executor);
-        fn();
+        const res = fn();
         effectStack.pop();
+        return res;
       };
       executor.deps = new Set();
       executor.options = options;
-      executor();
+      console.log("options.lazy：", options.lazy);
+      if (!options.lazy) {
+        executor();
+      }
+      return executor;
     };
     const data = {
       text: "Hello World！",
       outerText: "初始值",
       ok: true,
       num: 1,
+      total: 2,
     };
 
     const proxyData = new Proxy(data, {
@@ -99,16 +105,25 @@
       console.log(proxyData.num);
     };
 
-    registerEffectFn(setDivInnerHtml, {
-      scheduler: (effect) => {
-        flushJob(effect);
-      },
+    const computed = (fn) => {
+      let effectFn = registerEffectFn(fn, { lazy: true });
+      return {
+        get value() {
+          return effectFn();
+        },
+      };
+    };
+    const sunRes = computed(() => {
+      console.log("触发了computed", proxyData.num);
+      return proxyData.num + proxyData.total;
     });
 
     setTimeout(() => {
       proxyData.num += 1;
       proxyData.num += 1;
       proxyData.num += 1;
+
+      document.getElementById("container").innerText = sunRes.value;
     }, 1500);
   </script>
 </html>
