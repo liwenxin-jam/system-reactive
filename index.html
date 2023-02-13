@@ -12,14 +12,26 @@
   <script>
     const bucket = new WeakMap();
     const effectStack = [];
-    const registerEffectFn = (fn, options = {}) => {
-      // 方式一，直接前置fn.deps
-      // effectStack.push(fn);
-      // fn.deps = new Set();
-      // fn();
-      // effectStack.pop();
+    let isFlushing = false; // 是否还在刷新的开关
+    const jobQueue = new Set(); // 任务队列
+    const flushJob = (effect) => {
+      jobQueue.add(effect);
+      if (isFlushing) {
+        return;
+      }
+      isFlushing = true;
+      Promise.resolve()
+        .then(() => {
+          jobQueue.forEach((job) => {
+            job();
+          });
+        })
+        .finally(() => {
+          isFlushing = false;
+        });
+    };
 
-      // 方式二，借助函数闭包赋值deps
+    const registerEffectFn = (fn, options = {}) => {
       const executor = () => {
         effectStack.push(executor);
         fn();
@@ -29,7 +41,12 @@
       executor.options = options;
       executor();
     };
-    const data = { text: "Hello World！", outerText: "初始值", ok: true };
+    const data = {
+      text: "Hello World！",
+      outerText: "初始值",
+      ok: true,
+      num: 1,
+    };
 
     const proxyData = new Proxy(data, {
       get(target, key) {
@@ -77,21 +94,21 @@
     });
 
     const setDivInnerHtml = () => {
+      document.getElementById("container").innerText = proxyData.text;
       console.log("触发了副作用函数");
-      const text = proxyData.ok ? proxyData.text : "not";
-      document.getElementById("container").innerText = text;
+      console.log(proxyData.num);
     };
 
     registerEffectFn(setDivInnerHtml, {
       scheduler: (effect) => {
-        console.log("执行副作用前");
-        effect();
-        console.log("执行副作用后");
+        flushJob(effect);
       },
     });
 
     setTimeout(() => {
-      proxyData.ok = false;
+      proxyData.num += 1;
+      proxyData.num += 1;
+      proxyData.num += 1;
     }, 1500);
   </script>
 </html>
